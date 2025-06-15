@@ -24,8 +24,20 @@
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
       margin: 0;
       padding: 0;
+      /* منع التكبير عند التركيز على الحقول */
+      -webkit-text-size-adjust: 100%;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
     }
     .rtl { direction: rtl; }
+    
+    /* إصلاح مشكلة الكيبورد على iOS */
+    input, textarea, select {
+      font-size: 16px !important;
+      -webkit-appearance: none;
+      border-radius: 0;
+    }
+    
     .loading-spinner {
       border: 4px solid #f3f3f3;
       border-top: 4px solid #6366f1;
@@ -39,35 +51,52 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    
+    /* منع التمرير عند فتح الكيبورد */
+    .keyboard-fix {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
   </style>
 </head>
 <body>
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
     // إعداد Supabase
     const supabaseUrl = 'https://gdjgdbwgwwfyokvbwghr.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkamdkYndnd3dmeW9rdmJ3Z2hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk5NDg5OTIsImV4cCI6MjA2NTUyNDk5Mn0.iX1vN9LL0DOzXAaUUKe5MIlLjBI_KN2GRnUi8LT2LaE';
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    // أيقونات بسيطة
-    const ChevronLeft = () => <span className="text-xl">←</span>;
-    const Users = () => <span className="text-2xl">👥</span>;
-    const Film = () => <span className="text-2xl">🎬</span>;
-    const Tv = () => <span className="text-2xl">📺</span>;
-    const Star = () => <span className="text-xl">⭐</span>;
-    const Plus = () => <span className="text-lg">➕</span>;
+    // أيقونات بسيطة - تعريفها خارج المكون لمنع إعادة الإنشاء
+    const ChevronLeft = React.memo(() => <span className="text-xl">←</span>);
+    const Users = React.memo(() => <span className="text-2xl">👥</span>);
+    const Film = React.memo(() => <span className="text-2xl">🎬</span>);
+    const Tv = React.memo(() => <span className="text-2xl">📺</span>);
+    const Star = React.memo(() => <span className="text-xl">⭐</span>);
+    const Plus = React.memo(() => <span className="text-lg">➕</span>);
 
-    // Hook لإدارة قاعدة البيانات
+    // Hook لإدارة قاعدة البيانات - محسن لمنع إعادة الرسم
     const useDatabase = () => {
       const [categories, setCategories] = useState({});
       const [characters, setCharacters] = useState([]);
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
 
-      const loadData = async () => {
+      const getIconComponent = useCallback((iconName) => {
+        switch (iconName) {
+          case 'users': return <Users />;
+          case 'tv': return <Tv />;
+          case 'film': return <Film />;
+          default: return <Star />;
+        }
+      }, []);
+
+      const loadData = useCallback(async () => {
         try {
           setLoading(true);
           setError(null);
@@ -124,9 +153,9 @@
         } finally {
           setLoading(false);
         }
-      };
+      }, [getIconComponent]);
 
-      const addCharacter = async (characterData) => {
+      const addCharacter = useCallback(async (characterData) => {
         try {
           // العثور على معرفات الفئات
           const mainCategory = Object.entries(categories).find(
@@ -162,9 +191,9 @@
         } catch (err) {
           throw err;
         }
-      };
+      }, [categories, loadData]);
 
-      const addMainCategory = async (categoryData) => {
+      const addMainCategory = useCallback(async (categoryData) => {
         try {
           const { data, error } = await supabase
             .from('main_categories')
@@ -177,9 +206,9 @@
         } catch (err) {
           throw err;
         }
-      };
+      }, [loadData]);
 
-      const addSubCategory = async (subCategoryData) => {
+      const addSubCategory = useCallback(async (subCategoryData) => {
         try {
           const { data, error } = await supabase
             .from('sub_categories')
@@ -192,9 +221,9 @@
         } catch (err) {
           throw err;
         }
-      };
+      }, [loadData]);
 
-      const verifyAdminPassword = async (password) => {
+      const verifyAdminPassword = useCallback(async (password) => {
         try {
           const { data, error } = await supabase
             .from('app_settings')
@@ -208,20 +237,11 @@
           console.error('خطأ في التحقق من كلمة المرور:', err);
           return false;
         }
-      };
-
-      const getIconComponent = (iconName) => {
-        switch (iconName) {
-          case 'users': return <Users />;
-          case 'tv': return <Tv />;
-          case 'film': return <Film />;
-          default: return <Star />;
-        }
-      };
+      }, []);
 
       useEffect(() => {
         loadData();
-      }, []);
+      }, [loadData]);
 
       return {
         categories,
@@ -255,16 +275,142 @@
       const [showPasswordModal, setShowPasswordModal] = useState(false);
       const [adminPassword, setAdminPassword] = useState('');
       const [currentCharacterIndex, setCurrentCharacterIndex] = useState(0);
-      const [newCharacter, setNewCharacter] = useState({
+      
+      // استخدام useRef لتجنب إعادة الرسم
+      const newCharacterRef = useRef({
         name: '',
         image: '',
         mainCategory: '',
         subCategory: ''
       });
+      const [newCharacterTrigger, setNewCharacterTrigger] = useState(0);
+      
       const [newMainCategory, setNewMainCategory] = useState('');
       const [newSubCategory, setNewSubCategory] = useState('');
       const [showAddCategory, setShowAddCategory] = useState(false);
       const [categoryToAddSub, setCategoryToAddSub] = useState('');
+
+      // دوال محسنة باستخدام useCallback
+      const handlePasswordSubmit = useCallback(async () => {
+        try {
+          const isValid = await verifyAdminPassword(adminPassword);
+          if (isValid) {
+            setCurrentScreen('admin');
+            setShowPasswordModal(false);
+            setAdminPassword('');
+          } else {
+            alert('كلمة المرور غير صحيحة');
+            setAdminPassword('');
+          }
+        } catch (err) {
+          alert('حدث خطأ في التحقق من كلمة المرور');
+        }
+      }, [adminPassword, verifyAdminPassword]);
+
+      const getCurrentCharacters = useCallback(() => {
+        return characters.filter(char => 
+          char.main_categories?.name === selectedMainCategory && 
+          char.sub_categories?.name === selectedSubCategory
+        );
+      }, [characters, selectedMainCategory, selectedSubCategory]);
+
+      const handleNextCharacter = useCallback(() => {
+        const currentChars = getCurrentCharacters();
+        if (currentChars.length > 0) {
+          setCurrentCharacterIndex((prev) => (prev + 1) % currentChars.length);
+        }
+      }, [getCurrentCharacters]);
+
+      const handleAddCharacter = useCallback(async () => {
+        try {
+          const characterData = newCharacterRef.current;
+          if (characterData.name && characterData.mainCategory && characterData.subCategory) {
+            await addCharacter(characterData);
+            newCharacterRef.current = { name: '', image: '', mainCategory: '', subCategory: '' };
+            setNewCharacterTrigger(prev => prev + 1);
+            alert('تم إضافة الشخصية بنجاح!');
+          } else {
+            alert('يرجى ملء جميع الحقول المطلوبة');
+          }
+        } catch (err) {
+          alert('حدث خطأ في إضافة الشخصية: ' + err.message);
+        }
+      }, [addCharacter]);
+
+      const handleAddMainCategorySubmit = useCallback(async () => {
+        try {
+          if (newMainCategory.trim()) {
+            const colors = [
+              'bg-gradient-to-br from-green-500 to-green-600',
+              'bg-gradient-to-br from-orange-500 to-orange-600',
+              'bg-gradient-to-br from-teal-500 to-teal-600',
+              'bg-gradient-to-br from-pink-500 to-pink-600',
+              'bg-gradient-to-br from-yellow-500 to-yellow-600'
+            ];
+            
+            await addMainCategory({
+              name: newMainCategory,
+              icon: 'star',
+              color: colors[Math.floor(Math.random() * colors.length)]
+            });
+            
+            setNewMainCategory('');
+            alert('تم إضافة الفئة الرئيسية بنجاح!');
+          }
+        } catch (err) {
+          alert('حدث خطأ في إضافة الفئة: ' + err.message);
+        }
+      }, [newMainCategory, addMainCategory]);
+
+      const handleAddSubCategorySubmit = useCallback(async () => {
+        try {
+          if (newSubCategory.trim() && categoryToAddSub) {
+            const mainCategoryId = categories[categoryToAddSub]?.id;
+            
+            await addSubCategory({
+              name: newSubCategory,
+              main_category_id: mainCategoryId
+            });
+            
+            setNewSubCategory('');
+            setCategoryToAddSub('');
+            alert('تم إضافة الفئة الفرعية بنجاح!');
+          }
+        } catch (err) {
+          alert('حدث خطأ في إضافة الفئة الفرعية: ' + err.message);
+        }
+      }, [newSubCategory, categoryToAddSub, categories, addSubCategory]);
+
+      const handleLogoClick = useCallback(() => {
+        const newCount = logoClickCount + 1;
+        setLogoClickCount(newCount);
+        if (newCount === 5) {
+          setShowPasswordModal(true);
+          setLogoClickCount(0);
+        }
+      }, [logoClickCount]);
+
+      // تحديث دوال تغيير القيم لتجنب إعادة الرسم
+      const updateNewCharacterName = useCallback((value) => {
+        newCharacterRef.current.name = value;
+        setNewCharacterTrigger(prev => prev + 1);
+      }, []);
+
+      const updateNewCharacterImage = useCallback((value) => {
+        newCharacterRef.current.image = value;
+        setNewCharacterTrigger(prev => prev + 1);
+      }, []);
+
+      const updateNewCharacterMainCategory = useCallback((value) => {
+        newCharacterRef.current.mainCategory = value;
+        newCharacterRef.current.subCategory = '';
+        setNewCharacterTrigger(prev => prev + 1);
+      }, []);
+
+      const updateNewCharacterSubCategory = useCallback((value) => {
+        newCharacterRef.current.subCategory = value;
+        setNewCharacterTrigger(prev => prev + 1);
+      }, []);
 
       // عرض شاشة التحميل
       if (loading) {
@@ -298,105 +444,8 @@
         );
       }
 
-      const handlePasswordSubmit = async () => {
-        try {
-          const isValid = await verifyAdminPassword(adminPassword);
-          if (isValid) {
-            setCurrentScreen('admin');
-            setShowPasswordModal(false);
-            setAdminPassword('');
-          } else {
-            alert('كلمة المرور غير صحيحة');
-            setAdminPassword('');
-          }
-        } catch (err) {
-          alert('حدث خطأ في التحقق من كلمة المرور');
-        }
-      };
-
-      const getCurrentCharacters = () => {
-        return characters.filter(char => 
-          char.main_categories?.name === selectedMainCategory && 
-          char.sub_categories?.name === selectedSubCategory
-        );
-      };
-
-      const handleNextCharacter = () => {
-        const currentChars = getCurrentCharacters();
-        if (currentChars.length > 0) {
-          setCurrentCharacterIndex((prev) => (prev + 1) % currentChars.length);
-        }
-      };
-
-      const handleAddCharacter = async () => {
-        try {
-          if (newCharacter.name && newCharacter.mainCategory && newCharacter.subCategory) {
-            await addCharacter(newCharacter);
-            setNewCharacter({ name: '', image: '', mainCategory: '', subCategory: '' });
-            alert('تم إضافة الشخصية بنجاح!');
-          } else {
-            alert('يرجى ملء جميع الحقول المطلوبة');
-          }
-        } catch (err) {
-          alert('حدث خطأ في إضافة الشخصية: ' + err.message);
-        }
-      };
-
-      const handleAddMainCategorySubmit = async () => {
-        try {
-          if (newMainCategory.trim()) {
-            const colors = [
-              'bg-gradient-to-br from-green-500 to-green-600',
-              'bg-gradient-to-br from-orange-500 to-orange-600',
-              'bg-gradient-to-br from-teal-500 to-teal-600',
-              'bg-gradient-to-br from-pink-500 to-pink-600',
-              'bg-gradient-to-br from-yellow-500 to-yellow-600'
-            ];
-            
-            await addMainCategory({
-              name: newMainCategory,
-              icon: 'star',
-              color: colors[Math.floor(Math.random() * colors.length)]
-            });
-            
-            setNewMainCategory('');
-            alert('تم إضافة الفئة الرئيسية بنجاح!');
-          }
-        } catch (err) {
-          alert('حدث خطأ في إضافة الفئة: ' + err.message);
-        }
-      };
-
-      const handleAddSubCategorySubmit = async () => {
-        try {
-          if (newSubCategory.trim() && categoryToAddSub) {
-            const mainCategoryId = categories[categoryToAddSub]?.id;
-            
-            await addSubCategory({
-              name: newSubCategory,
-              main_category_id: mainCategoryId
-            });
-            
-            setNewSubCategory('');
-            setCategoryToAddSub('');
-            alert('تم إضافة الفئة الفرعية بنجاح!');
-          }
-        } catch (err) {
-          alert('حدث خطأ في إضافة الفئة الفرعية: ' + err.message);
-        }
-      };
-
-      const handleLogoClick = () => {
-        const newCount = logoClickCount + 1;
-        setLogoClickCount(newCount);
-        if (newCount === 5) {
-          setShowPasswordModal(true);
-          setLogoClickCount(0);
-        }
-      };
-
       // واجهة الترحيب
-      const WelcomeScreen = () => (
+      const WelcomeScreen = React.memo(() => (
         <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center p-6 text-white">
           <div className="text-center space-y-8">
             <div 
@@ -423,10 +472,10 @@
             </div>
           )}
         </div>
-      );
+      ));
 
       // واجهة اختيار الفئة الرئيسية
-      const MainCategoriesScreen = () => (
+      const MainCategoriesScreen = React.memo(() => (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
           <div className="max-w-md mx-auto">
             <div className="flex items-center mb-8">
@@ -457,10 +506,10 @@
             </div>
           </div>
         </div>
-      );
+      ));
 
       // واجهة اختيار الفئة الفرعية
-      const SubCategoriesScreen = () => (
+      const SubCategoriesScreen = React.memo(() => (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
           <div className="max-w-md mx-auto">
             <div className="flex items-center mb-8">
@@ -492,10 +541,10 @@
             </div>
           </div>
         </div>
-      );
+      ));
 
       // واجهة عرض الشخصية
-      const CharacterScreen = () => {
+      const CharacterScreen = React.memo(() => {
         const currentChars = getCurrentCharacters();
         const currentChar = currentChars[currentCharacterIndex];
         
@@ -558,10 +607,10 @@
             </div>
           </div>
         );
-      };
+      });
 
       // لوحة التحكم الإدارية
-      const AdminScreen = () => (
+      const AdminScreen = React.memo(() => (
         <div className="min-h-screen bg-gradient-to-br from-gray-800 to-gray-900 p-6 text-white">
           <div className="max-w-md mx-auto">
             <div className="flex items-center justify-between mb-8">
@@ -578,25 +627,31 @@
               <h2 className="text-xl font-semibold mb-4">إضافة شخصية جديدة</h2>
               
               <input
+                key={`name-${newCharacterTrigger}`}
                 type="text"
                 placeholder="اسم الشخصية"
-                value={newCharacter.name}
-                onChange={(e) => setNewCharacter(prev => ({...prev, name: e.target.value}))}
+                defaultValue={newCharacterRef.current.name}
+                onChange={(e) => updateNewCharacterName(e.target.value)}
                 className="w-full bg-gray-600 text-white p-3 rounded-xl placeholder-gray-400"
+                style={{ fontSize: '16px' }}
               />
               
               <input
+                key={`image-${newCharacterTrigger}`}
                 type="text"
                 placeholder="رمز الشخصية (مثل: 👤)"
-                value={newCharacter.image}
-                onChange={(e) => setNewCharacter(prev => ({...prev, image: e.target.value}))}
+                defaultValue={newCharacterRef.current.image}
+                onChange={(e) => updateNewCharacterImage(e.target.value)}
                 className="w-full bg-gray-600 text-white p-3 rounded-xl placeholder-gray-400"
+                style={{ fontSize: '16px' }}
               />
               
               <select
-                value={newCharacter.mainCategory}
-                onChange={(e) => setNewCharacter(prev => ({...prev, mainCategory: e.target.value, subCategory: ''}))}
+                key={`main-${newCharacterTrigger}`}
+                value={newCharacterRef.current.mainCategory}
+                onChange={(e) => updateNewCharacterMainCategory(e.target.value)}
                 className="w-full bg-gray-600 text-white p-3 rounded-xl"
+                style={{ fontSize: '16px' }}
               >
                 <option value="">اختر الفئة الرئيسية</option>
                 {Object.keys(categories).map(cat => (
@@ -604,14 +659,16 @@
                 ))}
               </select>
               
-              {newCharacter.mainCategory && (
+              {newCharacterRef.current.mainCategory && (
                 <select
-                  value={newCharacter.subCategory}
-                  onChange={(e) => setNewCharacter(prev => ({...prev, subCategory: e.target.value}))}
+                  key={`sub-${newCharacterTrigger}`}
+                  value={newCharacterRef.current.subCategory}
+                  onChange={(e) => updateNewCharacterSubCategory(e.target.value)}
                   className="w-full bg-gray-600 text-white p-3 rounded-xl"
+                  style={{ fontSize: '16px' }}
                 >
                   <option value="">اختر الفئة الفرعية</option>
-                  {categories[newCharacter.mainCategory]?.subCategories.map(subCat => (
+                  {categories[newCharacterRef.current.mainCategory]?.subCategories.map(subCat => (
                     <option key={subCat} value={subCat}>{subCat}</option>
                   ))}
                 </select>
@@ -649,6 +706,7 @@
                         value={newMainCategory}
                         onChange={(e) => setNewMainCategory(e.target.value)}
                         className="flex-1 bg-gray-600 text-white p-2 rounded-lg placeholder-gray-400"
+                        style={{ fontSize: '16px' }}
                       />
                       <button
                         onClick={handleAddMainCategorySubmit}
@@ -665,6 +723,7 @@
                       value={categoryToAddSub}
                       onChange={(e) => setCategoryToAddSub(e.target.value)}
                       className="w-full bg-gray-600 text-white p-2 rounded-lg mb-2"
+                      style={{ fontSize: '16px' }}
                     >
                       <option value="">اختر الفئة الرئيسية</option>
                       {Object.keys(categories).map(cat => (
@@ -680,6 +739,7 @@
                         onChange={(e) => setNewSubCategory(e.target.value)}
                         className="flex-1 bg-gray-600 text-white p-2 rounded-lg placeholder-gray-400"
                         disabled={!categoryToAddSub}
+                        style={{ fontSize: '16px' }}
                       />
                       <button
                         onClick={handleAddSubCategorySubmit}
@@ -704,10 +764,10 @@
             </div>
           </div>
         </div>
-      );
+      ));
 
-      // نافذة كلمة المرور
-      const PasswordModal = () => (
+      // نافذة كلمة المرور - محسنة لمنع اختفاء الكيبورد
+      const PasswordModal = React.memo(() => (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6 z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
             <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">كلمة المرور</h2>
@@ -718,6 +778,8 @@
               onChange={(e) => setAdminPassword(e.target.value)}
               className="w-full border-2 border-gray-200 p-3 rounded-xl mb-4 text-center"
               onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+              style={{ fontSize: '16px' }}
+              autoComplete="current-password"
             />
             <div className="flex space-x-3 space-x-reverse">
               <button
@@ -738,7 +800,7 @@
             </div>
           </div>
         </div>
-      );
+      ));
 
       return (
         <div className="rtl">
