@@ -16,26 +16,29 @@
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- PWA Manifest -->
-  <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoi2KrYrdiv2Yog2K7ZhdmGINin2YTYtNiu2LXZitipIiwic2hvcnRfbmFtZSI6Itin2YTYqNin2YLZitip2KfYqiIsInN0YXJ0X3VybCI6Ii8iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjNjM2NmYxIiwidGhlbWVfY29sb3IiOiIjNjM2NmYxIiwiaWNvbnMiOlt7InNyYyI6ImRhdGE6aW1hZ2Uvc3ZnK3htbDtiYXNlNjQsUEhOMlp5QjNhV1IwYUQwaU1qQXdJaUJvWldsbmFIUTlJakl3TUNJZ2RtbGxkMEp2ZUQwaU1DQXdJakl3TUNBME1EQWlJSGh0Ykc1elBTSm9kSFJ3T2k4dmQzZDNMbmN6TG05eVp5OHlNREF3TDNOMlp5SStQR05wY21Oc1pTQmplRDBpTVRBd0lpQmplVDBpTVRBd0lpQnlQU0k0TUNBZ1ptbHNiRDBpSTJZMU5UVXpOaUl2UGp3dmMzWm5Qaz1zIiwic2l6ZXMiOiIxOTJ4MTkyIiwidHlwZSI6ImltYWdlL3N2Zyt4bWwifV19">
-  
   <style>
     body { 
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
       margin: 0;
       padding: 0;
-      /* منع التكبير عند التركيز على الحقول */
       -webkit-text-size-adjust: 100%;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
     }
     .rtl { direction: rtl; }
     
-    /* إصلاح مشكلة الكيبورد على iOS */
+    /* إصلاح شامل لمشكلة الكيبورد */
     input, textarea, select {
       font-size: 16px !important;
       -webkit-appearance: none;
-      border-radius: 0;
+      border-radius: 8px !important;
+      outline: none;
+      transition: none !important;
+    }
+    
+    input:focus, textarea:focus, select:focus {
+      outline: 2px solid #6366f1 !important;
+      outline-offset: 2px !important;
     }
     
     .loading-spinner {
@@ -51,14 +54,6 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-    
-    /* منع التمرير عند فتح الكيبورد */
-    .keyboard-fix {
-      position: fixed;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-    }
   </style>
 </head>
 <body>
@@ -72,15 +67,77 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdkamdkYndnd3dmeW9rdmJ3Z2hyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk5NDg5OTIsImV4cCI6MjA2NTUyNDk5Mn0.iX1vN9LL0DOzXAaUUKe5MIlLjBI_KN2GRnUi8LT2LaE';
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    // أيقونات بسيطة - تعريفها خارج المكون لمنع إعادة الإنشاء
-    const ChevronLeft = React.memo(() => <span className="text-xl">←</span>);
-    const Users = React.memo(() => <span className="text-2xl">👥</span>);
-    const Film = React.memo(() => <span className="text-2xl">🎬</span>);
-    const Tv = React.memo(() => <span className="text-2xl">📺</span>);
-    const Star = React.memo(() => <span className="text-xl">⭐</span>);
-    const Plus = React.memo(() => <span className="text-lg">➕</span>);
+    // مكونات الأيقونات - خارج التطبيق الرئيسي
+    const ChevronLeft = () => <span className="text-xl">←</span>;
+    const Users = () => <span className="text-2xl">👥</span>;
+    const Film = () => <span className="text-2xl">🎬</span>;
+    const Tv = () => <span className="text-2xl">📺</span>;
+    const Star = () => <span className="text-xl">⭐</span>;
+    const Plus = () => <span className="text-lg">➕</span>;
 
-    // Hook لإدارة قاعدة البيانات - محسن لمنع إعادة الرسم
+    // مكون حقل الإدخال المستقل
+    const InputField = ({ 
+      type = "text", 
+      placeholder, 
+      value, 
+      onChange, 
+      className,
+      onKeyPress,
+      autoComplete,
+      disabled = false
+    }) => {
+      const inputRef = useRef(null);
+      
+      const handleChange = useCallback((e) => {
+        if (onChange) {
+          onChange(e.target.value);
+        }
+      }, [onChange]);
+
+      return (
+        <input
+          ref={inputRef}
+          type={type}
+          placeholder={placeholder}
+          value={value}
+          onChange={handleChange}
+          onKeyPress={onKeyPress}
+          className={className}
+          autoComplete={autoComplete}
+          disabled={disabled}
+          style={{ fontSize: '16px' }}
+        />
+      );
+    };
+
+    // مكون القائمة المنسدلة المستقل
+    const SelectField = ({ 
+      value, 
+      onChange, 
+      children, 
+      className,
+      disabled = false
+    }) => {
+      const handleChange = useCallback((e) => {
+        if (onChange) {
+          onChange(e.target.value);
+        }
+      }, [onChange]);
+
+      return (
+        <select
+          value={value}
+          onChange={handleChange}
+          className={className}
+          disabled={disabled}
+          style={{ fontSize: '16px' }}
+        >
+          {children}
+        </select>
+      );
+    };
+
+    // Hook قاعدة البيانات
     const useDatabase = () => {
       const [categories, setCategories] = useState({});
       const [characters, setCharacters] = useState([]);
@@ -101,39 +158,19 @@
           setLoading(true);
           setError(null);
 
-          // تحميل الفئات الرئيسية
-          const { data: mainCategories, error: mainError } = await supabase
-            .from('main_categories')
-            .select('*')
-            .order('name');
+          const [mainCategoriesResult, subCategoriesResult, charactersResult] = await Promise.all([
+            supabase.from('main_categories').select('*').order('name'),
+            supabase.from('sub_categories').select('*, main_categories(name)').order('name'),
+            supabase.from('characters').select('*, main_categories(name), sub_categories(name)').order('name')
+          ]);
 
-          if (mainError) throw mainError;
+          if (mainCategoriesResult.error) throw mainCategoriesResult.error;
+          if (subCategoriesResult.error) throw subCategoriesResult.error;
+          if (charactersResult.error) throw charactersResult.error;
 
-          // تحميل الفئات الفرعية
-          const { data: subCategories, error: subError } = await supabase
-            .from('sub_categories')
-            .select('*, main_categories(name)')
-            .order('name');
-
-          if (subError) throw subError;
-
-          // تحميل الشخصيات
-          const { data: allCharacters, error: charError } = await supabase
-            .from('characters')
-            .select(`
-              *,
-              main_categories(name),
-              sub_categories(name)
-            `)
-            .order('name');
-
-          if (charError) throw charError;
-
-          // تنسيق البيانات
           const formattedCategories = {};
-          
-          mainCategories.forEach(mainCat => {
-            const relatedSubCategories = subCategories
+          mainCategoriesResult.data.forEach(mainCat => {
+            const relatedSubCategories = subCategoriesResult.data
               .filter(subCat => subCat.main_category_id === mainCat.id)
               .map(subCat => subCat.name);
 
@@ -146,7 +183,7 @@
           });
 
           setCategories(formattedCategories);
-          setCharacters(allCharacters);
+          setCharacters(charactersResult.data);
         } catch (err) {
           setError(err.message);
           console.error('خطأ في تحميل البيانات:', err);
@@ -157,7 +194,6 @@
 
       const addCharacter = useCallback(async (characterData) => {
         try {
-          // العثور على معرفات الفئات
           const mainCategory = Object.entries(categories).find(
             ([name]) => name === characterData.mainCategory
           );
@@ -185,8 +221,7 @@
             .select();
 
           if (error) throw error;
-          
-          await loadData(); // إعادة تحميل البيانات
+          await loadData();
           return data[0];
         } catch (err) {
           throw err;
@@ -194,33 +229,23 @@
       }, [categories, loadData]);
 
       const addMainCategory = useCallback(async (categoryData) => {
-        try {
-          const { data, error } = await supabase
-            .from('main_categories')
-            .insert([categoryData])
-            .select();
-
-          if (error) throw error;
-          await loadData();
-          return data[0];
-        } catch (err) {
-          throw err;
-        }
+        const { data, error } = await supabase
+          .from('main_categories')
+          .insert([categoryData])
+          .select();
+        if (error) throw error;
+        await loadData();
+        return data[0];
       }, [loadData]);
 
       const addSubCategory = useCallback(async (subCategoryData) => {
-        try {
-          const { data, error } = await supabase
-            .from('sub_categories')
-            .insert([subCategoryData])
-            .select();
-
-          if (error) throw error;
-          await loadData();
-          return data[0];
-        } catch (err) {
-          throw err;
-        }
+        const { data, error } = await supabase
+          .from('sub_categories')
+          .insert([subCategoryData])
+          .select();
+        if (error) throw error;
+        await loadData();
+        return data[0];
       }, [loadData]);
 
       const verifyAdminPassword = useCallback(async (password) => {
@@ -230,7 +255,6 @@
             .select('setting_value')
             .eq('setting_key', 'admin_password')
             .single();
-
           if (error) throw error;
           return password === data.setting_value;
         } catch (err) {
@@ -268,29 +292,26 @@
         verifyAdminPassword
       } = useDatabase();
 
+      // الحالات الأساسية
       const [currentScreen, setCurrentScreen] = useState('welcome');
       const [selectedMainCategory, setSelectedMainCategory] = useState('');
       const [selectedSubCategory, setSelectedSubCategory] = useState('');
       const [logoClickCount, setLogoClickCount] = useState(0);
       const [showPasswordModal, setShowPasswordModal] = useState(false);
-      const [adminPassword, setAdminPassword] = useState('');
       const [currentCharacterIndex, setCurrentCharacterIndex] = useState(0);
       
-      // استخدام useRef لتجنب إعادة الرسم
-      const newCharacterRef = useRef({
-        name: '',
-        image: '',
-        mainCategory: '',
-        subCategory: ''
-      });
-      const [newCharacterTrigger, setNewCharacterTrigger] = useState(0);
-      
+      // حالات النماذج - منفصلة لكل حقل
+      const [adminPassword, setAdminPassword] = useState('');
+      const [newCharacterName, setNewCharacterName] = useState('');
+      const [newCharacterImage, setNewCharacterImage] = useState('');
+      const [newCharacterMainCategory, setNewCharacterMainCategory] = useState('');
+      const [newCharacterSubCategory, setNewCharacterSubCategory] = useState('');
       const [newMainCategory, setNewMainCategory] = useState('');
       const [newSubCategory, setNewSubCategory] = useState('');
       const [showAddCategory, setShowAddCategory] = useState(false);
       const [categoryToAddSub, setCategoryToAddSub] = useState('');
 
-      // دوال محسنة باستخدام useCallback
+      // الدوال مع useCallback
       const handlePasswordSubmit = useCallback(async () => {
         try {
           const isValid = await verifyAdminPassword(adminPassword);
@@ -323,11 +344,18 @@
 
       const handleAddCharacter = useCallback(async () => {
         try {
-          const characterData = newCharacterRef.current;
-          if (characterData.name && characterData.mainCategory && characterData.subCategory) {
-            await addCharacter(characterData);
-            newCharacterRef.current = { name: '', image: '', mainCategory: '', subCategory: '' };
-            setNewCharacterTrigger(prev => prev + 1);
+          if (newCharacterName && newCharacterMainCategory && newCharacterSubCategory) {
+            await addCharacter({
+              name: newCharacterName,
+              image: newCharacterImage,
+              mainCategory: newCharacterMainCategory,
+              subCategory: newCharacterSubCategory
+            });
+            // إعادة تعيين القيم
+            setNewCharacterName('');
+            setNewCharacterImage('');
+            setNewCharacterMainCategory('');
+            setNewCharacterSubCategory('');
             alert('تم إضافة الشخصية بنجاح!');
           } else {
             alert('يرجى ملء جميع الحقول المطلوبة');
@@ -335,7 +363,7 @@
         } catch (err) {
           alert('حدث خطأ في إضافة الشخصية: ' + err.message);
         }
-      }, [addCharacter]);
+      }, [newCharacterName, newCharacterImage, newCharacterMainCategory, newCharacterSubCategory, addCharacter]);
 
       const handleAddMainCategorySubmit = useCallback(async () => {
         try {
@@ -390,29 +418,13 @@
         }
       }, [logoClickCount]);
 
-      // تحديث دوال تغيير القيم لتجنب إعادة الرسم
-      const updateNewCharacterName = useCallback((value) => {
-        newCharacterRef.current.name = value;
-        setNewCharacterTrigger(prev => prev + 1);
+      // دالة تغيير الفئة الرئيسية للشخصية الجديدة
+      const handleNewCharacterMainCategoryChange = useCallback((value) => {
+        setNewCharacterMainCategory(value);
+        setNewCharacterSubCategory(''); // إعادة تعيين الفئة الفرعية
       }, []);
 
-      const updateNewCharacterImage = useCallback((value) => {
-        newCharacterRef.current.image = value;
-        setNewCharacterTrigger(prev => prev + 1);
-      }, []);
-
-      const updateNewCharacterMainCategory = useCallback((value) => {
-        newCharacterRef.current.mainCategory = value;
-        newCharacterRef.current.subCategory = '';
-        setNewCharacterTrigger(prev => prev + 1);
-      }, []);
-
-      const updateNewCharacterSubCategory = useCallback((value) => {
-        newCharacterRef.current.subCategory = value;
-        setNewCharacterTrigger(prev => prev + 1);
-      }, []);
-
-      // عرض شاشة التحميل
+      // شاشات التطبيق
       if (loading) {
         return (
           <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600">
@@ -425,7 +437,6 @@
         );
       }
 
-      // عرض خطأ إذا حدث
       if (error) {
         return (
           <div className="min-h-screen flex items-center justify-center bg-red-50">
@@ -445,106 +456,112 @@
       }
 
       // واجهة الترحيب
-      const WelcomeScreen = React.memo(() => (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center p-6 text-white">
-          <div className="text-center space-y-8">
-            <div 
-              className="text-8xl cursor-pointer transform transition-transform hover:scale-110 active:scale-95"
-              onClick={handleLogoClick}
-            >
-              🎯
-            </div>
-            <div className="space-y-4">
-              <h1 className="text-4xl font-bold tracking-wide">تحدي خمن الشخصية</h1>
-              <p className="text-xl opacity-90">اختبر معلوماتك واكتشف مدى معرفتك</p>
-              <p className="text-sm opacity-75">متصل بقاعدة البيانات ✅</p>
-            </div>
-            <button
-              onClick={() => setCurrentScreen('mainCategories')}
-              className="bg-white text-purple-600 px-8 py-4 rounded-2xl text-xl font-semibold shadow-lg transform transition-all hover:scale-105 active:scale-95"
-            >
-              ابدأ اللعبة
-            </button>
-          </div>
-          {logoClickCount > 0 && logoClickCount < 5 && (
-            <div className="absolute top-4 right-4 bg-black bg-opacity-30 px-3 py-1 rounded-full text-sm">
-              {logoClickCount}/5
-            </div>
-          )}
-        </div>
-      ));
-
-      // واجهة اختيار الفئة الرئيسية
-      const MainCategoriesScreen = React.memo(() => (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-          <div className="max-w-md mx-auto">
-            <div className="flex items-center mb-8">
-              <button
-                onClick={() => setCurrentScreen('welcome')}
-                className="p-2 rounded-full bg-white shadow-md"
+      if (currentScreen === 'welcome') {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center p-6 text-white">
+            <div className="text-center space-y-8">
+              <div 
+                className="text-8xl cursor-pointer transform transition-transform hover:scale-110 active:scale-95"
+                onClick={handleLogoClick}
               >
-                <ChevronLeft />
-              </button>
-              <h1 className="text-2xl font-bold text-gray-800 mr-4">اختر الفئة</h1>
-            </div>
-            <div className="space-y-4">
-              {Object.entries(categories).map(([category, details]) => (
-                <button
-                  key={category}
-                  onClick={() => {
-                    setSelectedMainCategory(category);
-                    setCurrentScreen('subCategories');
-                  }}
-                  className={`w-full ${details.color} text-white p-6 rounded-2xl shadow-lg transform transition-all hover:scale-105 active:scale-95`}
-                >
-                  <div className="flex items-center justify-center space-x-4 space-x-reverse">
-                    {details.icon}
-                    <span className="text-xl font-semibold">{category}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      ));
-
-      // واجهة اختيار الفئة الفرعية
-      const SubCategoriesScreen = React.memo(() => (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-          <div className="max-w-md mx-auto">
-            <div className="flex items-center mb-8">
+                🎯
+              </div>
+              <div className="space-y-4">
+                <h1 className="text-4xl font-bold tracking-wide">تحدي خمن الشخصية</h1>
+                <p className="text-xl opacity-90">اختبر معلوماتك واكتشف مدى معرفتك</p>
+                <p className="text-sm opacity-75">متصل بقاعدة البيانات ✅</p>
+              </div>
               <button
                 onClick={() => setCurrentScreen('mainCategories')}
-                className="p-2 rounded-full bg-white shadow-md"
+                className="bg-white text-purple-600 px-8 py-4 rounded-2xl text-xl font-semibold shadow-lg transform transition-all hover:scale-105 active:scale-95"
               >
-                <ChevronLeft />
+                ابدأ اللعبة
               </button>
-              <h1 className="text-2xl font-bold text-gray-800 mr-4">{selectedMainCategory}</h1>
             </div>
-            <div className="space-y-4">
-              {categories[selectedMainCategory]?.subCategories.map((subCategory) => (
+            {logoClickCount > 0 && logoClickCount < 5 && (
+              <div className="absolute top-4 right-4 bg-black bg-opacity-30 px-3 py-1 rounded-full text-sm">
+                {logoClickCount}/5
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // واجهة اختيار الفئة الرئيسية
+      if (currentScreen === 'mainCategories') {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+            <div className="max-w-md mx-auto">
+              <div className="flex items-center mb-8">
                 <button
-                  key={subCategory}
-                  onClick={() => {
-                    setSelectedSubCategory(subCategory);
-                    setCurrentCharacterIndex(0);
-                    setCurrentScreen('character');
-                  }}
-                  className="w-full bg-white text-gray-800 p-6 rounded-2xl shadow-lg border-2 border-gray-100 transform transition-all hover:scale-105 active:scale-95"
+                  onClick={() => setCurrentScreen('welcome')}
+                  className="p-2 rounded-full bg-white shadow-md"
                 >
-                  <div className="flex items-center justify-center space-x-4 space-x-reverse">
-                    <Star />
-                    <span className="text-lg font-semibold">{subCategory}</span>
-                  </div>
+                  <ChevronLeft />
                 </button>
-              ))}
+                <h1 className="text-2xl font-bold text-gray-800 mr-4">اختر الفئة</h1>
+              </div>
+              <div className="space-y-4">
+                {Object.entries(categories).map(([category, details]) => (
+                  <button
+                    key={category}
+                    onClick={() => {
+                      setSelectedMainCategory(category);
+                      setCurrentScreen('subCategories');
+                    }}
+                    className={`w-full ${details.color} text-white p-6 rounded-2xl shadow-lg transform transition-all hover:scale-105 active:scale-95`}
+                  >
+                    <div className="flex items-center justify-center space-x-4 space-x-reverse">
+                      {details.icon}
+                      <span className="text-xl font-semibold">{category}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      ));
+        );
+      }
+
+      // واجهة اختيار الفئة الفرعية
+      if (currentScreen === 'subCategories') {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+            <div className="max-w-md mx-auto">
+              <div className="flex items-center mb-8">
+                <button
+                  onClick={() => setCurrentScreen('mainCategories')}
+                  className="p-2 rounded-full bg-white shadow-md"
+                >
+                  <ChevronLeft />
+                </button>
+                <h1 className="text-2xl font-bold text-gray-800 mr-4">{selectedMainCategory}</h1>
+              </div>
+              <div className="space-y-4">
+                {categories[selectedMainCategory]?.subCategories.map((subCategory) => (
+                  <button
+                    key={subCategory}
+                    onClick={() => {
+                      setSelectedSubCategory(subCategory);
+                      setCurrentCharacterIndex(0);
+                      setCurrentScreen('character');
+                    }}
+                    className="w-full bg-white text-gray-800 p-6 rounded-2xl shadow-lg border-2 border-gray-100 transform transition-all hover:scale-105 active:scale-95"
+                  >
+                    <div className="flex items-center justify-center space-x-4 space-x-reverse">
+                      <Star />
+                      <span className="text-lg font-semibold">{subCategory}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
 
       // واجهة عرض الشخصية
-      const CharacterScreen = React.memo(() => {
+      if (currentScreen === 'character') {
         const currentChars = getCurrentCharacters();
         const currentChar = currentChars[currentCharacterIndex];
         
@@ -607,211 +624,190 @@
             </div>
           </div>
         );
-      });
+      }
 
       // لوحة التحكم الإدارية
-      const AdminScreen = React.memo(() => (
-        <div className="min-h-screen bg-gradient-to-br from-gray-800 to-gray-900 p-6 text-white">
-          <div className="max-w-md mx-auto">
-            <div className="flex items-center justify-between mb-8">
-              <h1 className="text-2xl font-bold">لوحة التحكم</h1>
-              <button
-                onClick={() => setCurrentScreen('welcome')}
-                className="bg-red-600 px-4 py-2 rounded-lg text-sm"
-              >
-                خروج
-              </button>
-            </div>
-            
-            <div className="bg-gray-700 rounded-2xl p-6 space-y-4 mb-6">
-              <h2 className="text-xl font-semibold mb-4">إضافة شخصية جديدة</h2>
-              
-              <input
-                key={`name-${newCharacterTrigger}`}
-                type="text"
-                placeholder="اسم الشخصية"
-                defaultValue={newCharacterRef.current.name}
-                onChange={(e) => updateNewCharacterName(e.target.value)}
-                className="w-full bg-gray-600 text-white p-3 rounded-xl placeholder-gray-400"
-                style={{ fontSize: '16px' }}
-              />
-              
-              <input
-                key={`image-${newCharacterTrigger}`}
-                type="text"
-                placeholder="رمز الشخصية (مثل: 👤)"
-                defaultValue={newCharacterRef.current.image}
-                onChange={(e) => updateNewCharacterImage(e.target.value)}
-                className="w-full bg-gray-600 text-white p-3 rounded-xl placeholder-gray-400"
-                style={{ fontSize: '16px' }}
-              />
-              
-              <select
-                key={`main-${newCharacterTrigger}`}
-                value={newCharacterRef.current.mainCategory}
-                onChange={(e) => updateNewCharacterMainCategory(e.target.value)}
-                className="w-full bg-gray-600 text-white p-3 rounded-xl"
-                style={{ fontSize: '16px' }}
-              >
-                <option value="">اختر الفئة الرئيسية</option>
-                {Object.keys(categories).map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-              
-              {newCharacterRef.current.mainCategory && (
-                <select
-                  key={`sub-${newCharacterTrigger}`}
-                  value={newCharacterRef.current.subCategory}
-                  onChange={(e) => updateNewCharacterSubCategory(e.target.value)}
-                  className="w-full bg-gray-600 text-white p-3 rounded-xl"
-                  style={{ fontSize: '16px' }}
-                >
-                  <option value="">اختر الفئة الفرعية</option>
-                  {categories[newCharacterRef.current.mainCategory]?.subCategories.map(subCat => (
-                    <option key={subCat} value={subCat}>{subCat}</option>
-                  ))}
-                </select>
-              )}
-              
-              <button
-                onClick={handleAddCharacter}
-                className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center space-x-2 space-x-reverse"
-              >
-                <Plus />
-                <span>إضافة الشخصية</span>
-              </button>
-            </div>
-
-            {/* إدارة الفئات */}
-            <div className="bg-gray-700 rounded-2xl p-6 space-y-4 mb-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">إدارة الفئات</h2>
+      if (currentScreen === 'admin') {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-gray-800 to-gray-900 p-6 text-white">
+            <div className="max-w-md mx-auto">
+              <div className="flex items-center justify-between mb-8">
+                <h1 className="text-2xl font-bold">لوحة التحكم</h1>
                 <button
-                  onClick={() => setShowAddCategory(!showAddCategory)}
-                  className="bg-blue-600 px-3 py-1 rounded-lg text-sm"
+                  onClick={() => setCurrentScreen('welcome')}
+                  className="bg-red-600 px-4 py-2 rounded-lg text-sm"
                 >
-                  {showAddCategory ? 'إخفاء' : 'إضافة فئات'}
+                  خروج
                 </button>
               </div>
               
-              {showAddCategory && (
-                <div className="space-y-4 border-t border-gray-600 pt-4">
-                  <div>
-                    <h3 className="text-lg font-medium mb-2">إضافة فئة رئيسية</h3>
-                    <div className="flex space-x-2 space-x-reverse">
-                      <input
-                        type="text"
-                        placeholder="اسم الفئة الجديدة"
-                        value={newMainCategory}
-                        onChange={(e) => setNewMainCategory(e.target.value)}
-                        className="flex-1 bg-gray-600 text-white p-2 rounded-lg placeholder-gray-400"
-                        style={{ fontSize: '16px' }}
-                      />
-                      <button
-                        onClick={handleAddMainCategorySubmit}
-                        className="bg-green-600 px-4 py-2 rounded-lg text-sm"
-                      >
-                        إضافة
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-lg font-medium mb-2">إضافة فئة فرعية</h3>
-                    <select
-                      value={categoryToAddSub}
-                      onChange={(e) => setCategoryToAddSub(e.target.value)}
-                      className="w-full bg-gray-600 text-white p-2 rounded-lg mb-2"
-                      style={{ fontSize: '16px' }}
-                    >
-                      <option value="">اختر الفئة الرئيسية</option>
-                      {Object.keys(categories).map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                    
-                    <div className="flex space-x-2 space-x-reverse">
-                      <input
-                        type="text"
-                        placeholder="اسم الفئة الفرعية"
-                        value={newSubCategory}
-                        onChange={(e) => setNewSubCategory(e.target.value)}
-                        className="flex-1 bg-gray-600 text-white p-2 rounded-lg placeholder-gray-400"
-                        disabled={!categoryToAddSub}
-                        style={{ fontSize: '16px' }}
-                      />
-                      <button
-                        onClick={handleAddSubCategorySubmit}
-                        disabled={!categoryToAddSub || !newSubCategory}
-                        className="bg-green-600 px-4 py-2 rounded-lg text-sm disabled:bg-gray-500"
-                      >
-                        إضافة
-                      </button>
-                    </div>
-                  </div>
+              <div className="bg-gray-700 rounded-2xl p-6 space-y-4 mb-6">
+                <h2 className="text-xl font-semibold mb-4">إضافة شخصية جديدة</h2>
+                
+                <InputField
+                  placeholder="اسم الشخصية"
+                  value={newCharacterName}
+                  onChange={setNewCharacterName}
+                  className="w-full bg-gray-600 text-white p-3 rounded-xl placeholder-gray-400"
+                />
+                
+                <InputField
+                  placeholder="رمز الشخصية (مثل: 👤)"
+                  value={newCharacterImage}
+                  onChange={setNewCharacterImage}
+                  className="w-full bg-gray-600 text-white p-3 rounded-xl placeholder-gray-400"
+                />
+                
+                <SelectField
+                  value={newCharacterMainCategory}
+                  onChange={handleNewCharacterMainCategoryChange}
+                  className="w-full bg-gray-600 text-white p-3 rounded-xl"
+                >
+                  <option value="">اختر الفئة الرئيسية</option>
+                  {Object.keys(categories).map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </SelectField>
+                
+                {newCharacterMainCategory && (
+                  <SelectField
+                    value={newCharacterSubCategory}
+                    onChange={setNewCharacterSubCategory}
+                    className="w-full bg-gray-600 text-white p-3 rounded-xl"
+                  >
+                    <option value="">اختر الفئة الفرعية</option>
+                    {categories[newCharacterMainCategory]?.subCategories.map(subCat => (
+                      <option key={subCat} value={subCat}>{subCat}</option>
+                    ))}
+                  </SelectField>
+                )}
+                
+                <button
+                  onClick={handleAddCharacter}
+                  className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center space-x-2 space-x-reverse"
+                >
+                  <Plus />
+                  <span>إضافة الشخصية</span>
+                </button>
+              </div>
+
+              {/* إدارة الفئات */}
+              <div className="bg-gray-700 rounded-2xl p-6 space-y-4 mb-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold">إدارة الفئات</h2>
+                  <button
+                    onClick={() => setShowAddCategory(!showAddCategory)}
+                    className="bg-blue-600 px-3 py-1 rounded-lg text-sm"
+                  >
+                    {showAddCategory ? 'إخفاء' : 'إضافة فئات'}
+                  </button>
                 </div>
-              )}
-            </div>
-            
-            <div className="bg-gray-700 rounded-2xl p-4">
-              <h3 className="text-lg font-semibold mb-2">إحصائيات</h3>
-              <div className="space-y-1 text-gray-300">
-                <p>إجمالي الشخصيات: {characters.length}</p>
-                <p>الفئات الرئيسية: {Object.keys(categories).length}</p>
-                <p>الفئات الفرعية: {Object.values(categories).reduce((total, cat) => total + cat.subCategories.length, 0)}</p>
+                
+                {showAddCategory && (
+                  <div className="space-y-4 border-t border-gray-600 pt-4">
+                    <div>
+                      <h3 className="text-lg font-medium mb-2">إضافة فئة رئيسية</h3>
+                      <div className="flex space-x-2 space-x-reverse">
+                        <InputField
+                          placeholder="اسم الفئة الجديدة"
+                          value={newMainCategory}
+                          onChange={setNewMainCategory}
+                          className="flex-1 bg-gray-600 text-white p-2 rounded-lg placeholder-gray-400"
+                        />
+                        <button
+                          onClick={handleAddMainCategorySubmit}
+                          className="bg-green-600 px-4 py-2 rounded-lg text-sm"
+                        >
+                          إضافة
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-lg font-medium mb-2">إضافة فئة فرعية</h3>
+                      <SelectField
+                        value={categoryToAddSub}
+                        onChange={setCategoryToAddSub}
+                        className="w-full bg-gray-600 text-white p-2 rounded-lg mb-2"
+                      >
+                        <option value="">اختر الفئة الرئيسية</option>
+                        {Object.keys(categories).map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </SelectField>
+                      
+                      <div className="flex space-x-2 space-x-reverse">
+                        <InputField
+                          placeholder="اسم الفئة الفرعية"
+                          value={newSubCategory}
+                          onChange={setNewSubCategory}
+                          className="flex-1 bg-gray-600 text-white p-2 rounded-lg placeholder-gray-400"
+                          disabled={!categoryToAddSub}
+                        />
+                        <button
+                          onClick={handleAddSubCategorySubmit}
+                          disabled={!categoryToAddSub || !newSubCategory}
+                          className="bg-green-600 px-4 py-2 rounded-lg text-sm disabled:bg-gray-500"
+                        >
+                          إضافة
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="bg-gray-700 rounded-2xl p-4">
+                <h3 className="text-lg font-semibold mb-2">إحصائيات</h3>
+                <div className="space-y-1 text-gray-300">
+                  <p>إجمالي الشخصيات: {characters.length}</p>
+                  <p>الفئات الرئيسية: {Object.keys(categories).length}</p>
+                  <p>الفئات الفرعية: {Object.values(categories).reduce((total, cat) => total + cat.subCategories.length, 0)}</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      ));
+        );
+      }
 
-      // نافذة كلمة المرور - محسنة لمنع اختفاء الكيبورد
-      const PasswordModal = React.memo(() => (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6 z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
-            <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">كلمة المرور</h2>
-            <input
-              type="password"
-              placeholder="أدخل كلمة المرور"
-              value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
-              className="w-full border-2 border-gray-200 p-3 rounded-xl mb-4 text-center"
-              onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()}
-              style={{ fontSize: '16px' }}
-              autoComplete="current-password"
-            />
-            <div className="flex space-x-3 space-x-reverse">
-              <button
-                onClick={handlePasswordSubmit}
-                className="flex-1 bg-purple-600 text-white py-3 rounded-xl font-semibold"
-              >
-                دخول
-              </button>
-              <button
-                onClick={() => {
-                  setShowPasswordModal(false);
-                  setAdminPassword('');
-                }}
-                className="flex-1 bg-gray-300 text-gray-700 py-3 rounded-xl font-semibold"
-              >
-                إلغاء
-              </button>
+      // نافذة كلمة المرور
+      if (showPasswordModal) {
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6 z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
+              <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">كلمة المرور</h2>
+              <InputField
+                type="password"
+                placeholder="أدخل كلمة المرور"
+                value={adminPassword}
+                onChange={setAdminPassword}
+                className="w-full border-2 border-gray-200 p-3 rounded-xl mb-4 text-center"
+                onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+                autoComplete="current-password"
+              />
+              <div className="flex space-x-3 space-x-reverse">
+                <button
+                  onClick={handlePasswordSubmit}
+                  className="flex-1 bg-purple-600 text-white py-3 rounded-xl font-semibold"
+                >
+                  دخول
+                </button>
+                <button
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setAdminPassword('');
+                  }}
+                  className="flex-1 bg-gray-300 text-gray-700 py-3 rounded-xl font-semibold"
+                >
+                  إلغاء
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      ));
+        );
+      }
 
-      return (
-        <div className="rtl">
-          {currentScreen === 'welcome' && <WelcomeScreen />}
-          {currentScreen === 'mainCategories' && <MainCategoriesScreen />}
-          {currentScreen === 'subCategories' && <SubCategoriesScreen />}
-          {currentScreen === 'character' && <CharacterScreen />}
-          {currentScreen === 'admin' && <AdminScreen />}
-          {showPasswordModal && <PasswordModal />}
-        </div>
-      );
+      return null;
     };
 
     ReactDOM.render(<GuessCharacterApp />, document.getElementById('root'));
