@@ -54,6 +54,20 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    
+    /* إضافة تأثير للإشارة إلى إمكانية الضغط على الهدف */
+    .logo-clickable {
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    
+    .logo-clickable:hover {
+      transform: scale(1.1);
+    }
+    
+    .logo-clickable:active {
+      transform: scale(0.95);
+    }
   </style>
 </head>
 <body>
@@ -296,7 +310,7 @@
       const [currentScreen, setCurrentScreen] = useState('welcome');
       const [selectedMainCategory, setSelectedMainCategory] = useState('');
       const [selectedSubCategory, setSelectedSubCategory] = useState('');
-      const [logoClickCount, setLogoClickCount] = useState(0);
+      const [logoClickCount, setLogoClickCount] = useState(0); // ✅ إعادة إضافة هذا المتغير
       const [showPasswordModal, setShowPasswordModal] = useState(false);
       const [currentCharacterIndex, setCurrentCharacterIndex] = useState(0);
       
@@ -311,6 +325,23 @@
       const [showAddCategory, setShowAddCategory] = useState(false);
       const [categoryToAddSub, setCategoryToAddSub] = useState('');
 
+      // دالة النقر على الشعار للوصول للإدارة
+      const handleLogoClick = useCallback(() => {
+        const newCount = logoClickCount + 1;
+        setLogoClickCount(newCount);
+        
+        // عرض رسالة تشجيعية
+        if (newCount === 3) {
+          console.log('استمر... 2 نقرات أخرى للوصول لوحة الإدارة');
+        }
+        
+        if (newCount === 5) {
+          setShowPasswordModal(true);
+          setLogoClickCount(0);
+          console.log('فتح نافذة كلمة المرور');
+        }
+      }, [logoClickCount]);
+
       // الدوال مع useCallback
       const handlePasswordSubmit = useCallback(async () => {
         try {
@@ -319,6 +350,7 @@
             setCurrentScreen('admin');
             setShowPasswordModal(false);
             setAdminPassword('');
+            alert('مرحباً في لوحة التحكم! 🎯');
           } else {
             alert('كلمة المرور غير صحيحة');
             setAdminPassword('');
@@ -409,15 +441,6 @@
         }
       }, [newSubCategory, categoryToAddSub, categories, addSubCategory]);
 
-      const handleLogoClick = useCallback(() => {
-        const newCount = logoClickCount + 1;
-        setLogoClickCount(newCount);
-        if (newCount === 5) {
-          setShowPasswordModal(true);
-          setLogoClickCount(0);
-        }
-      }, [logoClickCount]);
-
       // دالة تغيير الفئة الرئيسية للشخصية الجديدة
       const handleNewCharacterMainCategoryChange = useCallback((value) => {
         setNewCharacterMainCategory(value);
@@ -455,14 +478,17 @@
         );
       }
 
-      // واجهة الترحيب
+      // واجهة الترحيب - مع إصلاح النقر على الشعار
       if (currentScreen === 'welcome') {
         return (
           <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex flex-col items-center justify-center p-6 text-white">
             <div className="text-center space-y-8">
               <div 
-                className="text-8xl cursor-pointer transform transition-transform hover:scale-110 active:scale-95"
+                className="text-8xl logo-clickable select-none"
                 onClick={handleLogoClick}
+                role="button"
+                tabIndex={0}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogoClick()}
               >
                 🎯
               </div>
@@ -470,6 +496,11 @@
                 <h1 className="text-4xl font-bold tracking-wide">تحدي خمن الشخصية</h1>
                 <p className="text-xl opacity-90">اختبر معلوماتك واكتشف مدى معرفتك</p>
                 <p className="text-sm opacity-75">متصل بقاعدة البيانات ✅</p>
+                {logoClickCount > 0 && logoClickCount < 5 && (
+                  <p className="text-xs opacity-60">
+                    اضغط على الهدف {5 - logoClickCount} مرات أخرى للوصول للإدارة
+                  </p>
+                )}
               </div>
               <button
                 onClick={() => setCurrentScreen('mainCategories')}
@@ -478,6 +509,8 @@
                 ابدأ اللعبة
               </button>
             </div>
+            
+            {/* عداد النقرات - مخفي نسبياً */}
             {logoClickCount > 0 && logoClickCount < 5 && (
               <div className="absolute top-4 right-4 bg-black bg-opacity-30 px-3 py-1 rounded-full text-sm">
                 {logoClickCount}/5
@@ -632,10 +665,10 @@
           <div className="min-h-screen bg-gradient-to-br from-gray-800 to-gray-900 p-6 text-white">
             <div className="max-w-md mx-auto">
               <div className="flex items-center justify-between mb-8">
-                <h1 className="text-2xl font-bold">لوحة التحكم</h1>
+                <h1 className="text-2xl font-bold">🔧 لوحة التحكم</h1>
                 <button
                   onClick={() => setCurrentScreen('welcome')}
-                  className="bg-red-600 px-4 py-2 rounded-lg text-sm"
+                  className="bg-red-600 px-4 py-2 rounded-lg text-sm hover:bg-red-700 transition-colors"
                 >
                   خروج
                 </button>
@@ -684,7 +717,7 @@
                 
                 <button
                   onClick={handleAddCharacter}
-                  className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center space-x-2 space-x-reverse"
+                  className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center space-x-2 space-x-reverse hover:bg-green-700 transition-colors"
                 >
                   <Plus />
                   <span>إضافة الشخصية</span>
@@ -697,7 +730,7 @@
                   <h2 className="text-xl font-semibold">إدارة الفئات</h2>
                   <button
                     onClick={() => setShowAddCategory(!showAddCategory)}
-                    className="bg-blue-600 px-3 py-1 rounded-lg text-sm"
+                    className="bg-blue-600 px-3 py-1 rounded-lg text-sm hover:bg-blue-700 transition-colors"
                   >
                     {showAddCategory ? 'إخفاء' : 'إضافة فئات'}
                   </button>
@@ -716,7 +749,7 @@
                         />
                         <button
                           onClick={handleAddMainCategorySubmit}
-                          className="bg-green-600 px-4 py-2 rounded-lg text-sm"
+                          className="bg-green-600 px-4 py-2 rounded-lg text-sm hover:bg-green-700 transition-colors"
                         >
                           إضافة
                         </button>
@@ -747,7 +780,7 @@
                         <button
                           onClick={handleAddSubCategorySubmit}
                           disabled={!categoryToAddSub || !newSubCategory}
-                          className="bg-green-600 px-4 py-2 rounded-lg text-sm disabled:bg-gray-500"
+                          className="bg-green-600 px-4 py-2 rounded-lg text-sm disabled:bg-gray-500 hover:bg-green-700 transition-colors"
                         >
                           إضافة
                         </button>
@@ -758,7 +791,7 @@
               </div>
               
               <div className="bg-gray-700 rounded-2xl p-4">
-                <h3 className="text-lg font-semibold mb-2">إحصائيات</h3>
+                <h3 className="text-lg font-semibold mb-2">📊 إحصائيات</h3>
                 <div className="space-y-1 text-gray-300">
                   <p>إجمالي الشخصيات: {characters.length}</p>
                   <p>الفئات الرئيسية: {Object.keys(categories).length}</p>
@@ -775,7 +808,8 @@
         return (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6 z-50">
             <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
-              <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">كلمة المرور</h2>
+              <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">🔐 كلمة المرور</h2>
+              <p className="text-sm text-gray-600 mb-4 text-center">أدخل كلمة مرور الإدارة للمتابعة</p>
               <InputField
                 type="password"
                 placeholder="أدخل كلمة المرور"
@@ -788,7 +822,7 @@
               <div className="flex space-x-3 space-x-reverse">
                 <button
                   onClick={handlePasswordSubmit}
-                  className="flex-1 bg-purple-600 text-white py-3 rounded-xl font-semibold"
+                  className="flex-1 bg-purple-600 text-white py-3 rounded-xl font-semibold hover:bg-purple-700 transition-colors"
                 >
                   دخول
                 </button>
@@ -796,12 +830,16 @@
                   onClick={() => {
                     setShowPasswordModal(false);
                     setAdminPassword('');
+                    setLogoClickCount(0); // إعادة تعيين العداد
                   }}
-                  className="flex-1 bg-gray-300 text-gray-700 py-3 rounded-xl font-semibold"
+                  className="flex-1 bg-gray-300 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-400 transition-colors"
                 >
                   إلغاء
                 </button>
               </div>
+              <p className="text-xs text-gray-500 mt-3 text-center">
+                كلمة المرور الافتراضية: admin123
+              </p>
             </div>
           </div>
         );
